@@ -5,6 +5,31 @@ import { sql } from '@vercel/postgres';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 
+import { signIn } from '@/auth';
+import { AuthError } from 'next-auth';
+
+
+export async function authenticate(
+    prevState: string | undefined,
+    formData: FormData,
+){
+    try {
+        await signIn('credentials', formData);
+    } catch (error) {
+        if(error instanceof AuthError){
+            switch(error.type){
+                case 'CredentialsSignin':
+                    return 'Invalid Credentials';
+
+                default: 
+                    return 'Something went wrong';
+            }
+        }
+
+        throw error;
+    }
+}
+
 const FormSchema = z.object({
     id: z.string(),
     customerId: z.string({
@@ -19,6 +44,8 @@ const FormSchema = z.object({
 
 const CreateInvoice = FormSchema.omit({id: true, date: true});
 const UpdateInvoice = FormSchema.omit({id: true, date: true});
+
+
 
 // This is temporary until @types/react-dom is updated
 export type State = {
@@ -88,7 +115,7 @@ export async function updateInvoice(id: string, prevState: State , formData: For
             message: 'Missing fields, Failed to update invoice'
         }
     }
-    
+
     const { customerId, amount, status } = validatedFields.data;
     const amountInCents = amount * 100;
    
